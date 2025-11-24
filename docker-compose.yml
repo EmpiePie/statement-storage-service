@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+
+  # ================================
+  # Statement Service (Spring Boot)
+  # ================================
+  statement-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: statement-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      STATEMENT_TOKEN_TTL_SECONDS: 300
+    ports:
+      - "8080:8080"
+    restart: always
+
+  # ================================
+  # Simple Local UI
+  # ================================
+  ui:
+    image: nginx:alpine
+    container_name: statement-ui
+    ports:
+      - "8081:80"
+    volumes:
+      - ./ui:/usr/share/nginx/html:ro
+    depends_on:
+      - statement-service
+
+
+
+
+      

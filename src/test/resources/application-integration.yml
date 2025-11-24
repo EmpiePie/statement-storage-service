@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: statement-service-test
+
+  task:
+    scheduling:
+      enabled: false
+
+logging:
+  level:
+    root: WARN
+    com.example: DEBUG
+
+statement:
+  token:
+    ttl-seconds: 5   # shorter TTL for expiration tests
+
+storage:
+  cleanup:
+    enabled: false
+    # do not clean tokens during tests
+

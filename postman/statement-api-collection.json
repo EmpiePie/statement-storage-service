@@ -1,0 +1,114 @@
+{
+  "info": {
+    "name": "Statement Service API",
+    "_postman_id": "b7e22a8f-6e23-4c97-9c92-ccf4778fa123",
+    "description": "Postman collection for the Statement Service (in-memory PDF storage with secure time-limited download tokens).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Statements",
+      "item": [
+        {
+          "name": "Upload Statement (filename parsed)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "statement_123_2024_10.pdf"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/statements/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "statements", "upload"]
+            }
+          }
+        },
+        {
+          "name": "List Statements (paginated)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/statements/{{customerId}}?page=0&size=10&sort=period,desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "statements", "{{customerId}}"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" },
+                { "key": "sort", "value": "period,desc" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Generate Download Link",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/statements/{{customerId}}/{{year}}/{{month}}/download-link",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "api",
+                "statements",
+                "{{customerId}}",
+                "{{year}}",
+                "{{month}}",
+                "download-link"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public Download",
+      "item": [
+        {
+          "name": "Download Statement via Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/public/download/{{token}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "public", "download", "{{token}}"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "event": [],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "customerId",
+      "value": "123"
+    },
+    {
+      "key": "year",
+      "value": "2024"
+    },
+    {
+      "key": "month",
+      "value": "10"
+    },
+    {
+      "key": "token",
+      "value": ""
+    }
+  ]
+}
+

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Statement Service</title>
+    <style>
+        body { font-family: Arial; margin: 40px; }
+        section { margin-bottom: 40px; }
+        input, button { padding: 8px; margin: 4px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ddd; padding: 8px; }
+    </style>
+</head>
+
+<body>
+
+<h1>Statement Service UI</h1>
+
+<!-- Upload -->
+<section>
+    <h2>Upload Statement</h2>
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="file" name="file" required />
+        <button type="submit">Upload</button>
+    </form>
+    <p id="uploadResult"></p>
+</section>
+
+<hr/>
+
+<!-- List -->
+<section>
+    <h2>List Statements</h2>
+    <label>Customer ID:</label>
+    <input type="number" id="listCustomerId" value="123" />
+
+    <button onclick="loadStatements()">Load</button>
+
+    <table id="statementsTable" style="display:none">
+        <thead>
+        <tr>
+            <th>Period</th>
+            <th>Download Link</th>
+        </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</section>
+
+<hr/>
+
+<!-- Download -->
+<section>
+    <h2>Download Statement</h2>
+    <input type="number" id="dlCustomerId" placeholder="Customer ID" required />
+    <input type="number" id="dlYear" placeholder="Year" required />
+    <input type="number" id="dlMonth" placeholder="Month" required />
+
+    <button onclick="downloadStatement()">Generate Download Link</button>
+    <p id="downloadResult"></p>
+</section>
+
+<script>
+    // Upload
+    document.getElementById("uploadForm").onsubmit = async function(e) {
+        e.preventDefault();
+
+        let formData = new FormData(this);
+
+        let res = await fetch("/api/statements/upload", {
+            method: "POST",
+            body: formData
+        });
+
+        let txt = await res.text();
+        document.getElementById("uploadResult").innerText = txt;
+    };
+
+    // List
+    async function loadStatements() {
+        const customerId = document.getElementById('listCustomerId').value;
+
+        const res = await fetch(`/api/statements/${customerId}`);
+        const data = await res.json();
+
+        const table = document.getElementById("statementsTable");
+        const tbody = table.querySelector("tbody");
+        tbody.innerHTML = "";
+
+        data.content.forEach(row => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${row.period}</td>
+                <td><button onclick="getLink(${row.customerId}, '${row.period}')">Get Link</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        table.style.display = "table";
+    }
+
+    function parsePeriod(period) {
+        const [year, month] = period.split("-");
+        return { year, month };
+    }
+
+    async function getLink(customerId, period) {
+        const { year, month } = parsePeriod(period);
+
+        const res = await fetch(`/api/statements/${customerId}/${year}/${month}/download-link`);
+        const data = await res.json();
+
+        alert("Download URL: " + data.url);
+    }
+
+    // Manual Download Input
+    async function downloadStatement() {
+        const c = document.getElementById('dlCustomerId').value;
+        const y = document.getElementById('dlYear').value;
+        const m = document.getElementById('dlMonth').value;
+
+        const res = await fetch(`/api/statements/${c}/${y}/${m}/download-link`);
+        const data = await res.json();
+
+        document.getElementById("downloadResult").innerHTML =
+            `<a href="${data.url}" target="_blank">Click to Download</a>`;
+    }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,28 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: statement-service
+
+logging:
+  level:
+    root: INFO
+    com.example: DEBUG
+
+statement:
+  token:
+    ttl-seconds: 300 # default 5 minutes for download links
+
+storage:
+  cleanup:
+    enabled: true
+    interval: 5m   # scheduled token cleanup
+    base-path: ./storage
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html

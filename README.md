@@ -102,7 +102,3 @@ If you encounter issues, open a GitHub issue or contact the maintainer.
 # ⚠️ Disclaimer
 This service is intended for demonstration and testing purposes only.
 Do not use it in production as it stores statements in memory and does not persist data.
-# statement-storage-service
-# statement-storage-service
-# statement-storage-service
-# statement-storage-service
