@@ -29,7 +29,7 @@ That’s it. You do not need Java or Maven installed.
 Clone the repository:
 
 ```bash
-git clone https://github.com/<your-org-or-user>/statement-service.git
+git clone https://github.com/EmpiePie/statement-storage-service.git
 ```
 ```bash
 cd statement-service
