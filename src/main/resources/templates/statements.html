@@ -8,12 +8,26 @@
         input, button { padding: 8px; margin: 4px; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { border: 1px solid #ddd; padding: 8px; }
+
+        /* Notification popup */
+        #copyNotification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #4CAF50;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 5px;
+            display: none;
+        }
     </style>
 </head>
 
 <body>
 
 <h1>Statement Service UI</h1>
+
+<div id="copyNotification">Copied to clipboard!</div>
 
 <!-- Upload -->
 <section>
@@ -60,6 +74,12 @@
 </section>
 
 <script>
+    function showCopyNotification() {
+        const n = document.getElementById("copyNotification");
+        n.style.display = "block";
+        setTimeout(() => n.style.display = "none", 2000);
+    }
+
     // Upload
     document.getElementById("uploadForm").onsubmit = async function(e) {
         e.preventDefault();
@@ -103,13 +123,18 @@
         return { year, month };
     }
 
+    // Updated: copies to clipboard + full URL
     async function getLink(customerId, period) {
         const { year, month } = parsePeriod(period);
 
         const res = await fetch(`/api/statements/${customerId}/${year}/${month}/download-link`);
         const data = await res.json();
 
-        alert("Download URL: " + data.url);
+        const fullUrl = `${window.location.origin}${data.url}`;
+
+        await navigator.clipboard.writeText(fullUrl);
+
+        showCopyNotification();
     }
 
     // Manual Download Input
@@ -121,8 +146,13 @@
         const res = await fetch(`/api/statements/${c}/${y}/${m}/download-link`);
         const data = await res.json();
 
+        const fullUrl = `${window.location.origin}${data.url}`;
+
         document.getElementById("downloadResult").innerHTML =
-            `<a href="${data.url}" target="_blank">Click to Download</a>`;
+            `<a href="${fullUrl}" target="_blank">Click to Download</a>`;
+
+        await navigator.clipboard.writeText(fullUrl);
+        showCopyNotification();
     }
 </script>
 
