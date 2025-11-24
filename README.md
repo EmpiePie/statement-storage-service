@@ -32,7 +32,7 @@ Clone the repository:
 git clone https://github.com/EmpiePie/statement-storage-service.git
 ```
 ```bash
-cd statement-service
+cd statement-storage-service
 ```
 
 Build and start the service using Docker Compose:
