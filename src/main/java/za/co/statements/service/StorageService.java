@@ -11,19 +11,19 @@ public class StorageService {
 
     private final Map<String, byte[]> store = new ConcurrentHashMap<>();
 
-    public void upload(String path, byte[] content) {
+    public void upload(final String path, final byte[] content) {
         store.put(path, content);
     }
 
-    public byte[] read(String path) {
+    public byte[] read(final String path) {
         return store.get(path);
     }
 
-    public boolean exists(String path) {
+    public boolean exists(final String path) {
         return store.containsKey(path);
     }
 
-    public List<String> list(String prefix) {
+    public List<String> list(final String prefix) {
         return store.keySet().stream()
                 .filter(key -> key.startsWith(prefix))
                 .toList();

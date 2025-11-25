@@ -21,7 +21,7 @@ public class DownloadTokenStore {
         Instant expiresAt;
     }
 
-    public String generateToken(String path, Duration ttl) {
+    public String generateToken(final String path, final Duration ttl) {
         String token = UUID.randomUUID().toString();
 
         TokenData data = new TokenData();
@@ -34,7 +34,7 @@ public class DownloadTokenStore {
         return token;
     }
 
-    public String validateToken(String token) {
+    public String validateToken(final String token) {
         TokenData data = tokens.get(token);
 
         if (data == null) {
@@ -70,7 +70,7 @@ public class DownloadTokenStore {
         }
     }
 
-    public void forceExpireToken(String token) {
+    public void forceExpireToken(final String token) {
         TokenData data = tokens.get(token);
         if (data != null) {
             data.expiresAt = Instant.now().minusSeconds(1);

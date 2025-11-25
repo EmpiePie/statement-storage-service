@@ -30,14 +30,14 @@ public class StatementService {
     @Value("${statement.token.ttl-seconds}")
     private long tokenTtlSeconds;
 
-    public UploadResponse saveStatement(Long customerId, YearMonth period, byte[] pdfBytes) {
+    public void saveStatement(final Long customerId, final YearMonth period, final byte[] pdfBytes) {
         String path = buildPath(customerId, period);
         log.info("Saving statement customerId={} period={} path={}", customerId, period, path);
         storageService.upload(path, pdfBytes);
-        return new UploadResponse("Statement uploaded", null); // clean UI message
+        new UploadResponse("Statement uploaded", null);
     }
 
-    public DownloadLinkResponse createDownloadLink(Long customerId, YearMonth period) {
+    public DownloadLinkResponse createDownloadLink(final Long customerId, final YearMonth period) {
 
         String path = buildPath(customerId, period);
 
@@ -51,14 +51,13 @@ public class StatementService {
             );
         }
 
-        // Only generate token if the file actually exists
         String token = tokenStore.generateToken(path, Duration.ofSeconds(tokenTtlSeconds));
         String url = "/api/public/download/" + token;
 
         return new DownloadLinkResponse(url, tokenTtlSeconds);
     }
 
-    public byte[] downloadViaToken(String token) {
+    public byte[] downloadViaToken(final String token) {
         log.info("Attempting download via token={}", token);
         String path = tokenStore.validateToken(token);
         if (path == null) {
@@ -69,11 +68,11 @@ public class StatementService {
         return storageService.read(path);
     }
 
-    private String buildPath(Long customerId, YearMonth period) {
+    private String buildPath(final Long customerId, final YearMonth period) {
         return String.format("statements/%d/%s.pdf", customerId, period);
     }
 
-    public Page<StatementMetadataDto> listStatements(Long customerId, Pageable pageable) {
+    public Page<StatementMetadataDto> listStatements(final Long customerId, final Pageable pageable) {
         List<String> allPaths = storageService.list("statements/" + customerId + "/");
         List<StatementMetadataDto> entries = allPaths.stream()
                 .map(this::toMetadata)
@@ -86,7 +85,7 @@ public class StatementService {
         return new PageImpl<>(pageContent, pageable, entries.size());
     }
 
-    private StatementMetadataDto toMetadata(String path) {
+    private StatementMetadataDto toMetadata(final String path) {
         String[] parts = path.split("/");
         Long customerId = Long.valueOf(parts[1]);
         String periodString = parts[2].replace(".pdf", "");
