@@ -9,17 +9,20 @@
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { border: 1px solid #ddd; padding: 8px; }
 
-        /* Small inline notification next to buttons */
-        .inline-note {
+        /* Notification popup */
+        .notification {
             display: inline-block;
             margin-left: 10px;
-            padding: 5px 10px;
-            background: #4CAF50;
+            padding: 4px 10px;
+            border-radius: 5px;
             color: white;
-            border-radius: 4px;
-            opacity: 1;
-            transition: opacity 1s ease-out;
+            font-size: 0.9em;
+            opacity: 0;
+            transition: opacity 0.5s;
         }
+        .success { background-color: #4CAF50; }
+        .error { background-color: #f44336; }
+        .visible { opacity: 1; }
     </style>
 </head>
 
@@ -44,7 +47,6 @@
     <h2>List Statements</h2>
     <label>Customer ID:</label>
     <input type="number" id="listCustomerId" value="123" />
-
     <button onclick="loadStatements()">Load</button>
 
     <table id="statementsTable" style="display:none">
@@ -62,127 +64,129 @@
 
 <!-- Download -->
 <section>
-    <h2>Download Statement</h2>
-
+    <h2>Generate Download Link</h2>
     <input type="number" id="dlCustomerId" placeholder="Customer ID" required />
     <input type="number" id="dlYear" placeholder="Year" required />
     <input type="number" id="dlMonth" placeholder="Month" required />
-
-    <button onclick="downloadStatement()">Generate Download Link</button>
-    <span id="manualNote"></span>
-
+    <button onclick="downloadStatement(this)">Generate Download Link</button>
+    <span id="downloadNotification" class="notification"></span>
     <p id="downloadResult"></p>
 </section>
 
-
 <script>
-
-    // Fade-out helper
-    function fadeOut(element) {
-        setTimeout(() => {
-            element.style.opacity = "0";
-            setTimeout(() => element.remove(), 1000);
-        }, 5000);
+    // ----------------------------
+    // Utility: Show notification
+    // ----------------------------
+    function showNotification(element, message, success) {
+        element.textContent = message;
+        element.className = "notification " + (success ? "success" : "error") + " visible";
+        setTimeout(() => element.classList.remove("visible"), 5000);
     }
 
-    // Upload handler
+    // ----------------------------
+    // Upload
+    // ----------------------------
     document.getElementById("uploadForm").onsubmit = async function(e) {
         e.preventDefault();
         let formData = new FormData(this);
 
-        let res = await fetch("/api/statements/upload", {
-            method: "POST",
-            body: formData
-        });
-
-        let txt = await res.text();
-        document.getElementById("uploadResult").innerText = txt;
+        try {
+            let res = await fetch("/api/statements/upload", {
+                method: "POST",
+                body: formData
+            });
+            if (res.ok) {
+                document.getElementById("uploadResult").innerText = "Statement Uploaded";
+            } else {
+                document.getElementById("uploadResult").innerText = "Upload Failed";
+            }
+        } catch (err) {
+            console.error(err);
+            document.getElementById("uploadResult").innerText = "Upload Failed";
+        }
     };
 
-
-    // Load list of statements
+    // ----------------------------
+    // List
+    // ----------------------------
     async function loadStatements() {
         const customerId = document.getElementById('listCustomerId').value;
-
-        const res = await fetch(`/api/statements/${customerId}`);
-        const data = await res.json();
-
         const table = document.getElementById("statementsTable");
         const tbody = table.querySelector("tbody");
         tbody.innerHTML = "";
 
-        data.content.forEach(row => {
-            const tr = document.createElement("tr");
+        try {
+            const res = await fetch(`/api/statements/${customerId}`);
+            if (!res.ok) return;
+            const data = await res.json();
 
-            tr.innerHTML = `
-                <td>${row.period}</td>
-                <td>
-                    <button onclick="getLink(${row.customerId}, '${row.period}', this)">Get Link</button>
-                </td>
-            `;
+            data.content.forEach(row => {
+                const tr = document.createElement("tr");
+                const btnId = `getLinkBtn-${row.customerId}-${row.period}`;
+                tr.innerHTML = `
+                    <td>${row.period}</td>
+                    <td>
+                        <button id="${btnId}">Get Link</button>
+                        <span id="notif-${btnId}" class="notification"></span>
+                    </td>
+                `;
+                tbody.appendChild(tr);
 
-            tbody.appendChild(tr);
-        });
+                const btn = document.getElementById(btnId);
+                const notif = document.getElementById(`notif-${btnId}`);
+                btn.onclick = async () => {
+                    try {
+                        const [year, month] = row.period.split("-");
+                        const resp = await fetch(`/api/statements/${row.customerId}/${year}/${month}/download-link`);
+                        if (!resp.ok) throw new Error("No statement found");
+                        const data = await resp.json();
+                        const fullUrl = `${window.location.origin}${data.url}`;
+                        await navigator.clipboard.writeText(fullUrl);
+                        showNotification(notif, "Copied", true);
+                    } catch (err) {
+                        console.error(err);
+                        showNotification(notif, "Failed to Copy", false);
+                    }
+                };
+            });
 
-        table.style.display = "table";
+            table.style.display = "table";
+        } catch (err) {
+            console.error(err);
+        }
     }
 
-
-    function parsePeriod(period) {
-        const [year, month] = period.split("-");
-        return { year, month };
-    }
-
-
-    // GET LINK from table
-    async function getLink(customerId, period, btnElement) {
-        const { year, month } = parsePeriod(period);
-
-        const res = await fetch(`/api/statements/${customerId}/${year}/${month}/download-link`);
-        const data = await res.json();
-
-        const fullUrl = `${window.location.origin}${data.url}`;
-
-        await navigator.clipboard.writeText(fullUrl);
-
-        // Create inline notification
-        const note = document.createElement("span");
-        note.className = "inline-note";
-        note.textContent = "Copied!";
-        btnElement.insertAdjacentElement("afterend", note);
-
-        fadeOut(note);
-    }
-
-
-    // Manual download section
-    async function downloadStatement() {
+    // ----------------------------
+    // Manual Download Input
+    // ----------------------------
+    async function downloadStatement(button) {
         const c = document.getElementById('dlCustomerId').value;
         const y = document.getElementById('dlYear').value;
         const m = document.getElementById('dlMonth').value;
+        const notif = document.getElementById("downloadNotification");
 
-        const res = await fetch(`/api/statements/${c}/${y}/${m}/download-link`);
-        const data = await res.json();
+        try {
+            const res = await fetch(`/api/statements/${c}/${y}/${m}/download-link`);
+            if (!res.ok) throw new Error("No statement found");
+            const data = await res.json();
+            const fullUrl = `${window.location.origin}${data.url}`;
 
-        const fullUrl = `${window.location.origin}${data.url}`;
+            document.getElementById("downloadResult").innerHTML =
+                `<a href="${fullUrl}" target="_blank">Click to Download</a>`;
 
-        document.getElementById("downloadResult").innerHTML =
-            `<a href="${fullUrl}" target="_blank">Click to Download</a>`;
-
-        await navigator.clipboard.writeText(fullUrl);
-
-        // Notification next to button
-        const note = document.createElement("span");
-        note.className = "inline-note";
-        note.textContent = "Copied!";
-        const manualNoteHolder = document.getElementById("manualNote");
-
-        manualNoteHolder.innerHTML = "";
-        manualNoteHolder.appendChild(note);
-
-        fadeOut(note);
+            try {
+                await navigator.clipboard.writeText(fullUrl);
+                showNotification(notif, "Copied", true);
+            } catch (err) {
+                console.error(err);
+                showNotification(notif, "Failed to Copy", false);
+            }
+        } catch (err) {
+            console.error(err);
+            showNotification(notif, "Failed to Copy", false);
+            document.getElementById("downloadResult").innerHTML = "";
+        }
     }
-
 </script>
 
 </body>

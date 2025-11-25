@@ -9,31 +9,24 @@ import org.springframework.web.bind.annotation.*;
 import java.time.Instant;
 
 @RestControllerAdvice
-@Slf4j
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(StatementNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleStatementNotFound(StatementNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse(ex.getMessage()));
+    }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
-        log.warn("Bad request: {}", ex.getMessage());
-        return ResponseEntity.badRequest().body(
-                new ErrorResponse(
-                        "Bad Request",
-                        ex.getMessage(),
-                        Instant.now()
-                )
-        );
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse(ex.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleOtherExceptions(Exception ex) {
-        log.error("Unexpected error", ex);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-                new ErrorResponse(
-                        "Internal Server Error",
-                        ex.getMessage(),
-                        Instant.now()
-                )
-        );
+    public ResponseEntity<ErrorResponse> handleUnexpected(Exception ex) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse("Unexpected error"));
     }
 }
 

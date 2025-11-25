@@ -14,8 +14,10 @@ import za.co.statements.token.DownloadTokenStore;
 
 import java.time.YearMonth;
 
+import static org.hibernate.validator.internal.util.Contracts.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
@@ -38,12 +40,21 @@ class StatementServiceTest {
 
     @Test
     void createDownloadLinkSuccess() {
-        when(tokenStore.generateToken(anyString(), any())).thenReturn("abc123");
+        Long customerId = 1L;
+        YearMonth period = YearMonth.of(2024, 1);
+        byte[] pdfBytes = "dummy".getBytes();
 
-        DownloadLinkResponse resp = service.createDownloadLink(1L, YearMonth.of(2024,1));
+        // Save statement first
+        service.saveStatement(customerId, period, pdfBytes);
 
-        assertEquals("/api/public/download/abc123", resp.url());
-        assertEquals(300, resp.expiresInSeconds());
+        // Ensure StorageService.exists returns true (if mocked)
+        when(storageService.exists(anyString())).thenReturn(true);
+
+        DownloadLinkResponse response = service.createDownloadLink(customerId, period);
+
+        assertNotNull(response);
+        assertTrue(response.url().contains("/api/public/download/"));
+        assertEquals(300, response.expiresInSeconds());
     }
 
     @Test

@@ -39,6 +39,7 @@ class StatementIntegrationTest {
 
     @Test
     void testUploadGenerateTokenDownloadFlow() throws Exception {
+
         MockMultipartFile pdfFile = new MockMultipartFile(
                 "file",
                 "statement_123_2024_10.pdf",
@@ -46,13 +47,12 @@ class StatementIntegrationTest {
                 "This is a test PDF content".getBytes()
         );
 
-        // Upload
+        // ---- Upload ----
         mockMvc.perform(multipart("/api/statements/upload").file(pdfFile))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").value("Statement uploaded"))
-                .andExpect(jsonPath("$.path").exists());
+                .andExpect(content().string("Statement Uploaded"));
 
-        // Generate token (download link)
+        // ---- Generate Token ----
         String tokenResponse = mockMvc.perform(
                         get("/api/statements/123/2024/10/download-link"))
                 .andExpect(status().isOk())
@@ -66,7 +66,7 @@ class StatementIntegrationTest {
         String url = root.get("url").asText();
         String token = url.substring(url.lastIndexOf('/') + 1);
 
-        // Download via public endpoint
+        // ---- Download ----
         mockMvc.perform(get("/api/public/download/" + token))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_PDF))
@@ -85,11 +85,11 @@ class StatementIntegrationTest {
                 "expired".getBytes()
         );
 
-        // Upload
+        // ---- Upload ----
         mockMvc.perform(multipart("/api/statements/upload").file(pdfFile))
                 .andExpect(status().isOk());
 
-        // Generate token
+        // ---- Generate Token ----
         String json = mockMvc.perform(get("/api/statements/999/2024/1/download-link"))
                 .andExpect(status().isOk())
                 .andReturn()
@@ -99,13 +99,12 @@ class StatementIntegrationTest {
         String tokenUrl = mapper.readTree(json).get("url").asText();
         String token = tokenUrl.substring(tokenUrl.lastIndexOf('/') + 1);
 
-        // Sleep > TTL (5s)
+        // ---- Expire token by waiting > TTL (5s) ----
         Thread.sleep(6000);
 
-        // Attempt download – expect 400
+        // ---- Attempt Download → expect new error format ----
         mockMvc.perform(get("/api/public/download/" + token))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("Bad Request"))
                 .andExpect(jsonPath("$.message").value("Token invalid or expired"))
                 .andExpect(jsonPath("$.timestamp").exists());
     }

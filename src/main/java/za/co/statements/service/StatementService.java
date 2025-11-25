@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import za.co.statements.exception.StatementNotFoundException;
 import za.co.statements.token.DownloadTokenStore;
 import za.co.statements.dto.response.DownloadLinkResponse;
 import za.co.statements.dto.response.UploadResponse;
@@ -33,13 +34,27 @@ public class StatementService {
         String path = buildPath(customerId, period);
         log.info("Saving statement customerId={} period={} path={}", customerId, period, path);
         storageService.upload(path, pdfBytes);
-        return new UploadResponse("Statement uploaded", path);
+        return new UploadResponse("Statement uploaded", null); // clean UI message
     }
 
     public DownloadLinkResponse createDownloadLink(Long customerId, YearMonth period) {
-        String path = buildPath(customerId, period); // FIX: unify path (includes .pdf)
+
+        String path = buildPath(customerId, period);
+
+        boolean exists = storageService.exists(path);
+
+        if (!exists) {
+            log.warn("No statement found for customerId={} period={} and path={}",
+                    customerId, period, path);
+            throw new StatementNotFoundException(
+                    "Statement not found for customer " + customerId + " for period " + period
+            );
+        }
+
+        // Only generate token if the file actually exists
         String token = tokenStore.generateToken(path, Duration.ofSeconds(tokenTtlSeconds));
         String url = "/api/public/download/" + token;
+
         return new DownloadLinkResponse(url, tokenTtlSeconds);
     }
 
@@ -79,6 +94,7 @@ public class StatementService {
         return new StatementMetadataDto(customerId, ym, path);
     }
 }
+
 
 
 
