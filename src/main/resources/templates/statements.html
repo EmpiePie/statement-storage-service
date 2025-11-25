@@ -9,16 +9,16 @@
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { border: 1px solid #ddd; padding: 8px; }
 
-        /* Notification popup */
-        #copyNotification {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
+        /* Small inline notification next to buttons */
+        .inline-note {
+            display: inline-block;
+            margin-left: 10px;
+            padding: 5px 10px;
             background: #4CAF50;
             color: white;
-            padding: 12px 20px;
-            border-radius: 5px;
-            display: none;
+            border-radius: 4px;
+            opacity: 1;
+            transition: opacity 1s ease-out;
         }
     </style>
 </head>
@@ -26,8 +26,6 @@
 <body>
 
 <h1>Statement Service UI</h1>
-
-<div id="copyNotification">Copied to clipboard!</div>
 
 <!-- Upload -->
 <section>
@@ -65,25 +63,31 @@
 <!-- Download -->
 <section>
     <h2>Download Statement</h2>
+
     <input type="number" id="dlCustomerId" placeholder="Customer ID" required />
     <input type="number" id="dlYear" placeholder="Year" required />
     <input type="number" id="dlMonth" placeholder="Month" required />
 
     <button onclick="downloadStatement()">Generate Download Link</button>
+    <span id="manualNote"></span>
+
     <p id="downloadResult"></p>
 </section>
 
+
 <script>
-    function showCopyNotification() {
-        const n = document.getElementById("copyNotification");
-        n.style.display = "block";
-        setTimeout(() => n.style.display = "none", 2000);
+
+    // Fade-out helper
+    function fadeOut(element) {
+        setTimeout(() => {
+            element.style.opacity = "0";
+            setTimeout(() => element.remove(), 1000);
+        }, 5000);
     }
 
-    // Upload
+    // Upload handler
     document.getElementById("uploadForm").onsubmit = async function(e) {
         e.preventDefault();
-
         let formData = new FormData(this);
 
         let res = await fetch("/api/statements/upload", {
@@ -95,7 +99,8 @@
         document.getElementById("uploadResult").innerText = txt;
     };
 
-    // List
+
+    // Load list of statements
     async function loadStatements() {
         const customerId = document.getElementById('listCustomerId').value;
 
@@ -108,23 +113,29 @@
 
         data.content.forEach(row => {
             const tr = document.createElement("tr");
+
             tr.innerHTML = `
                 <td>${row.period}</td>
-                <td><button onclick="getLink(${row.customerId}, '${row.period}')">Get Link</button></td>
+                <td>
+                    <button onclick="getLink(${row.customerId}, '${row.period}', this)">Get Link</button>
+                </td>
             `;
+
             tbody.appendChild(tr);
         });
 
         table.style.display = "table";
     }
 
+
     function parsePeriod(period) {
         const [year, month] = period.split("-");
         return { year, month };
     }
 
-    // Updated: copies to clipboard + full URL
-    async function getLink(customerId, period) {
+
+    // GET LINK from table
+    async function getLink(customerId, period, btnElement) {
         const { year, month } = parsePeriod(period);
 
         const res = await fetch(`/api/statements/${customerId}/${year}/${month}/download-link`);
@@ -134,10 +145,17 @@
 
         await navigator.clipboard.writeText(fullUrl);
 
-        showCopyNotification();
+        // Create inline notification
+        const note = document.createElement("span");
+        note.className = "inline-note";
+        note.textContent = "Copied!";
+        btnElement.insertAdjacentElement("afterend", note);
+
+        fadeOut(note);
     }
 
-    // Manual Download Input
+
+    // Manual download section
     async function downloadStatement() {
         const c = document.getElementById('dlCustomerId').value;
         const y = document.getElementById('dlYear').value;
@@ -152,8 +170,19 @@
             `<a href="${fullUrl}" target="_blank">Click to Download</a>`;
 
         await navigator.clipboard.writeText(fullUrl);
-        showCopyNotification();
+
+        // Notification next to button
+        const note = document.createElement("span");
+        note.className = "inline-note";
+        note.textContent = "Copied!";
+        const manualNoteHolder = document.getElementById("manualNote");
+
+        manualNoteHolder.innerHTML = "";
+        manualNoteHolder.appendChild(note);
+
+        fadeOut(note);
     }
+
 </script>
 
 </body>

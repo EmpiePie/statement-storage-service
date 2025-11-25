@@ -93,26 +93,24 @@ public class StatementController {
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PostMapping("/upload")
-    public ResponseEntity<UploadResponse> upload(@RequestParam("file") MultipartFile file) throws IOException {
+    public ResponseEntity<String> upload(@RequestParam("file") MultipartFile file) throws IOException {
 
         if (file.isEmpty()) {
-            return ResponseEntity.badRequest()
-                    .body(new UploadResponse("File is empty", null));
+            return ResponseEntity.badRequest().body("File is empty");
         }
 
         String filename = file.getOriginalFilename();
         if (filename == null || !filename.matches("statement_\\d+_\\d{4}_\\d{1,2}.*")) {
             return ResponseEntity.badRequest()
-                    .body(new UploadResponse("Invalid filename format. Expected: statement_<customerId>_<year>_<month>", null));
+                    .body("Invalid filename format. Expected: statement_<customerId>_<year>_<month>");
         }
 
-        // Extract values using regex
         Pattern pattern = Pattern.compile("statement_(\\d+)_(\\d{4})_(\\d{1,2})");
         Matcher matcher = pattern.matcher(filename);
 
         if (!matcher.find()) {
             return ResponseEntity.badRequest()
-                    .body(new UploadResponse("Unable to extract customerId, year, month from filename.", null));
+                    .body("Unable to extract customerId, year, month from filename.");
         }
 
         long customerId = Long.parseLong(matcher.group(1));
@@ -121,13 +119,14 @@ public class StatementController {
 
         byte[] pdfBytes = file.getBytes();
 
-        UploadResponse response = statementService.saveStatement(
+        statementService.saveStatement(
                 customerId,
                 YearMonth.of(year, month),
                 pdfBytes
         );
 
-        return ResponseEntity.ok(response);
+        // ✔ Clean text-only response
+        return ResponseEntity.ok("Statement Uploaded");
     }
 
 
