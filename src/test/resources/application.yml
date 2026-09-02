@@ -2,21 +2,37 @@ spring:
   application:
     name: statement-service-test
 
+  # In-memory H2 stands in for Postgres; JPA-backed token store persists here.
+  datasource:
+    url: jdbc:h2:mem:statements;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+
   task:
     scheduling:
       enabled: false
 
+# Dummy values so the always-on Keycloak beans construct; never called in tests
+# (security is permit-all under the test profile via TestSecurityConfig).
+keycloak:
+  auth-server-url: http://localhost:0
+  realm: test
+  client-id: test-client
+  client-secret: test-secret
+  admin-username: admin
+  admin-password: admin
+
 logging:
   level:
     root: WARN
-    com.example: DEBUG
+    za.co.statements: DEBUG
 
 statement:
   token:
     ttl-seconds: 5   # shorter TTL for expiration tests
-
-storage:
-  cleanup:
-    enabled: false
-    # do not clean tokens during tests
-

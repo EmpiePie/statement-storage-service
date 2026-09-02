@@ -28,6 +28,10 @@
 
 <body>
 
+<div style="float:right">
+    <button onclick="logout()">Log out</button>
+</div>
+
 <h1>Statement Service UI</h1>
 
 <!-- Upload -->
@@ -75,6 +79,31 @@
 
 <script>
     // ----------------------------
+    // Auth helpers
+    // ----------------------------
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+        window.location.href = "/login";
+    }
+
+    function logout() {
+        localStorage.removeItem("access_token");
+        window.location.href = "/login";
+    }
+
+    // fetch wrapper that attaches the Bearer token and handles 401s
+    async function authFetch(url, options = {}) {
+        const opts = { ...options };
+        opts.headers = { ...(opts.headers || {}), "Authorization": "Bearer " + token };
+        const res = await fetch(url, opts);
+        if (res.status === 401) {
+            logout();
+            throw new Error("Session expired");
+        }
+        return res;
+    }
+
+    // ----------------------------
     // Utility: Show notification
     // ----------------------------
     function showNotification(element, message, success) {
@@ -91,18 +120,20 @@
         let formData = new FormData(this);
 
         try {
-            let res = await fetch("/api/statements/upload", {
+            let res = await authFetch("/api/statements/upload", {
                 method: "POST",
                 body: formData
             });
+            const body = await res.text();
             if (res.ok) {
-                document.getElementById("uploadResult").innerText = "Statement Uploaded";
+                document.getElementById("uploadResult").innerText = body || "Statement Uploaded";
             } else {
-                document.getElementById("uploadResult").innerText = "Upload Failed";
+                document.getElementById("uploadResult").innerText =
+                    "Upload failed (" + res.status + "): " + (body || res.statusText);
             }
         } catch (err) {
             console.error(err);
-            document.getElementById("uploadResult").innerText = "Upload Failed";
+            document.getElementById("uploadResult").innerText = "Upload failed: " + err.message;
         }
     };
 
@@ -116,7 +147,7 @@
         tbody.innerHTML = "";
 
         try {
-            const res = await fetch(`/api/statements/${customerId}`);
+            const res = await authFetch(`/api/statements/${customerId}`);
             if (!res.ok) return;
             const data = await res.json();
 
@@ -137,7 +168,7 @@
                 btn.onclick = async () => {
                     try {
                         const [year, month] = row.period.split("-");
-                        const resp = await fetch(`/api/statements/${row.customerId}/${year}/${month}/download-link`);
+                        const resp = await authFetch(`/api/statements/${row.customerId}/${year}/${month}/download-link`);
                         if (!resp.ok) throw new Error("No statement found");
                         const data = await resp.json();
                         const fullUrl = `${window.location.origin}${data.url}`;
@@ -166,7 +197,7 @@
         const notif = document.getElementById("downloadNotification");
 
         try {
-            const res = await fetch(`/api/statements/${c}/${y}/${m}/download-link`);
+            const res = await authFetch(`/api/statements/${c}/${y}/${m}/download-link`);
             if (!res.ok) throw new Error("No statement found");
             const data = await res.json();
             const fullUrl = `${window.location.origin}${data.url}`;

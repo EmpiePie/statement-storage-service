@@ -1,28 +1,23 @@
-server:
-  port: 8080
-
+# Profile for running the app on the host (java -jar) while the
+# postgres / keycloak / minio containers are reachable on localhost.
 spring:
-  application:
-    name: statement-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/statements
+    username: statements
+    password: statements
 
-logging:
-  level:
-    root: INFO
-    com.example: DEBUG
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:8180/realms/statements/protocol/openid-connect/certs
 
-statement:
-  token:
-    ttl-seconds: 300 # default 5 minutes for download links
+keycloak:
+  auth-server-url: http://localhost:8180
+  client-secret: statement-service-secret
 
 storage:
-  cleanup:
-    enabled: true
-    interval: 5m   # scheduled token cleanup
-    base-path: ./storage
-
-springdoc:
-  api-docs:
-    enabled: true
-  swagger-ui:
-    enabled: true
-    path: /swagger-ui.html
+  s3:
+    endpoint: http://localhost:9000
+    access-key: minioadmin
+    secret-key: minioadmin

@@ -1,33 +1,19 @@
 package za.co.statements.service;
 
-import org.springframework.stereotype.Service;
-
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
-@Service
-public class StorageService {
+/**
+ * Abstraction over the statement blob store.
+ * Backed by MinIO/S3 in normal runs ({@link S3StorageService}) and by an
+ * in-memory map during tests ({@link InMemoryStorageService}).
+ */
+public interface StorageService {
 
-    private final Map<String, byte[]> store = new ConcurrentHashMap<>();
+    void upload(String path, byte[] content);
 
-    public void upload(final String path, final byte[] content) {
-        store.put(path, content);
-    }
+    byte[] read(String path);
 
-    public byte[] read(final String path) {
-        return store.get(path);
-    }
+    boolean exists(String path);
 
-    public boolean exists(final String path) {
-        return store.containsKey(path);
-    }
-
-    public List<String> list(final String prefix) {
-        return store.keySet().stream()
-                .filter(key -> key.startsWith(prefix))
-                .toList();
-    }
+    List<String> list(String prefix);
 }
-
-

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Register — Statement Service</title>
+    <style>
+        body { font-family: Arial; margin: 40px; max-width: 420px; }
+        h1 { font-size: 1.4em; }
+        input, button { padding: 8px; margin: 4px 0; width: 100%; box-sizing: border-box; }
+        button { background: #4CAF50; color: white; border: none; cursor: pointer; }
+        .msg { margin-top: 12px; min-height: 1.2em; }
+        .error { color: #f44336; }
+        .success { color: #4CAF50; }
+        .link { margin-top: 16px; display: block; }
+        small { color: #666; }
+    </style>
+</head>
+<body>
+
+<h1>📝 Create an Account</h1>
+
+<form id="registerForm">
+    <label>Username</label>
+    <input type="text" id="username" required />
+    <label>Password</label>
+    <input type="password" id="password" required />
+    <label>Customer ID</label>
+    <input type="number" id="customerId" min="1" required />
+    <small>The customer account whose statements you will manage (e.g. 123).</small>
+    <button type="submit">Register</button>
+</form>
+
+<p id="msg" class="msg"></p>
+<a class="link" href="/login">Already have an account? Log in</a>
+
+<script>
+    document.getElementById("registerForm").onsubmit = async function (e) {
+        e.preventDefault();
+        const msg = document.getElementById("msg");
+        msg.textContent = "";
+        msg.className = "msg";
+
+        try {
+            const res = await fetch("/api/auth/register", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    username: document.getElementById("username").value,
+                    password: document.getElementById("password").value,
+                    customerId: Number(document.getElementById("customerId").value)
+                })
+            });
+
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(data.message || "Registration failed");
+            }
+
+            msg.textContent = (data.message || "Account created.") + " Redirecting to login…";
+            msg.className = "msg success";
+            setTimeout(() => window.location.href = "/login", 1500);
+        } catch (err) {
+            msg.textContent = err.message;
+            msg.className = "msg error";
+        }
+    };
+</script>
+
+</body>
+</html>

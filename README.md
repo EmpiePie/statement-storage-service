@@ -1,104 +1,118 @@
 # 📄 Statement Storage Service
 
-A lightweight Spring Boot service for storing PDF bank statements in memory and generating secure, time-limited download tokens.
-Includes a very simple UI for uploading and downloading statements in the browser.
+A Spring Boot service for storing PDF bank statements and generating secure, time-limited download tokens.
+Includes a simple browser UI for registering, logging in, uploading, and downloading statements.
 
-Perfect for demos, PoCs, and testing secure download workflows — no external databases or storage systems required.
+The stack now runs entirely in Docker: the app, a **Keycloak** identity provider, a **PostgreSQL**
+database, and a **MinIO** (S3-compatible) object store — all started with a single command.
 
 # 🚀 Features
 
-- Upload monthly statements as PDF
-- Auto-extract customerId, year, and month from file name
-- Format: statement_customerId_year_month.pdf
-- Store statements in memory (lost on restart)
-- Generate temporary download tokens
-- Token valid for a few minutes
-- Public endpoint to download PDF via token
+- **Authentication via Keycloak (IDP) + JWT** — register/log in through the app; a signed JWT is issued on login and required to call the statement API
+- **Per-customer authorization** — a logged-in user may only access statements for their own customer ID
+- Upload monthly statements as PDF (filename format: `statement_customerId_year_month.pdf`)
+- Auto-extract `customerId`, `year`, and `month` from the file name
+- **PDFs stored in a MinIO (mock S3) bucket** — no longer in memory
+- **Download tokens persisted in PostgreSQL** — survive restarts; valid for a few minutes
+- Public endpoint to download a PDF via a temporary token
 - Paginated listing per customer
-- Basic HTML/JS UI at http://localhost:8080/statements
-- Fully Dockerized (no local JDK required)
+- HTML/JS UI at http://localhost:8080/statements
+- Fully Dockerized (no local JDK or Maven required)
 
 # 📦 Requirements
 
 - Rancher Desktop or Docker Desktop installed
 
-That’s it. You do not need Java or Maven installed.
+That's it. You do not need Java or Maven installed to run it.
 
 # 🛠️ Running Locally
 
-Clone the repository:
-
-```bash
-git clone https://github.com/EmpiePie/statement-storage-service.git
-```
-```bash
-cd statement-storage-service
-```
-
-Build and start the service using Docker Compose:
+Build and start everything with Docker Compose:
 
 ```bash
 docker compose up --build
 ```
 
-Should you wish to destroy the data and start afresh, you can use the following command:
+To tear everything down (and wipe the Postgres/MinIO volumes):
 
 ```bash
-docker compose down
+docker compose down -v
 ```
 
-## Services will start at:
+## Services
 
-Statement Service API   -	http://localhost:8080
-
-Statement Service UI    -	http://localhost:8080/statements
-
-Swagger API Docs       -	http://localhost:8080/swagger-ui.html
-
-
+| Service                | URL                                   | Notes                              |
+|------------------------|---------------------------------------|------------------------------------|
+| Statement Service API  | http://localhost:8080                 | Spring Boot app                    |
+| Statement Service UI   | http://localhost:8080/statements      | Requires login                     |
+| Login / Register       | http://localhost:8080/login           | and `/register`                    |
+| Swagger API Docs       | http://localhost:8080/swagger-ui.html |                                    |
+| Keycloak Admin Console | http://localhost:8180                 | admin / admin                      |
+| MinIO Console          | http://localhost:9001                 | minioadmin / minioadmin            |
+| PostgreSQL             | localhost:5432                        | statements / statements (or postgres / postgres) |
 
 # 📝 Usage
-## Uploading Statements
-Use the web UI at `http://localhost:8080/statements` to upload PDF statements.
-Ensure the file names follow the format: `statement_customerId_year_month.pdf`.
 
-For example: `statement_12345_2023_01.pdf`.
+## 1. Register & log in
+1. Open http://localhost:8080/register and create an account, choosing a **Customer ID** (e.g. `123`).
+   This creates a user in Keycloak plus a local profile linking your username to that customer ID.
+2. Log in at http://localhost:8080/login. The UI stores your JWT and redirects to the statements page.
 
-Customer ID will be extracted as `12345`, year as `2023`, and month as `01`.
+## 2. Uploading statements
+On the UI, upload a PDF named `statement_<customerId>_<year>_<month>.pdf`
+(e.g. `statement_123_2024_10.pdf`). The customer ID in the filename **must match your account's
+customer ID**, otherwise the upload is rejected with `403 Forbidden`. Uploaded PDFs are written to
+the `statements` bucket in MinIO (browse them at http://localhost:9001).
 
-Use this Customer ID for listing and downloading statements.
+## 3. Downloading statements
+Generate a time-limited download token from the UI, then open the public link:
+`http://localhost:8080/api/public/download/<token>`. The token is valid for the configured TTL
+(default 5 minutes) and is persisted in PostgreSQL.
 
-## Downloading Statements
-After uploading, you can generate a download token for a statement.
-Use the token to download the statement via the public endpoint:
-`http://localhost:8080/statements/download?token=<token>`.
-The token is valid for a limited time (e.g., 5 minutes).
+## Calling the API directly
+
+```bash
+# Log in and capture the token
+TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"alice","password":"secret"}' | jq -r .access_token)
+
+# Call a protected endpoint
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/statements/123
+```
+
+# 🏗️ Architecture
+
+- **Keycloak** is the identity provider. The app is an OAuth2 **resource server** that validates
+  RS256 JWTs against the realm's JWKS. Login uses the OIDC password grant; registration uses the
+  Keycloak Admin API. Keycloak's own data is stored in the `keycloak` database in Postgres.
+- **PostgreSQL** stores the app's download tokens (`download_token`) and user→customer profiles
+  (`user_profile`) in the `statements` database. The app and Keycloak connect as the `statements`
+  role. A `postgres` superuser (password `postgres`) is also created by `docker/postgres/init.sql`
+  purely so DB tools that default to the `postgres` username can connect without extra config.
+- **MinIO** provides an S3-compatible bucket for statement PDFs, accessed via the AWS SDK v2.
+- A realm named `statements` and a confidential client `statement-service` are imported into
+  Keycloak on startup from `docker/keycloak/realm-export.json`.
 
 # 📄 API Documentation
-The API is documented using Swagger.
-Access the Swagger UI at: `http://localhost:8080/swagger-ui.html`.
+Swagger UI: `http://localhost:8080/swagger-ui.html`.
 
 # 🧪 Testing
-You can run the unit and integration tests using Maven.
-If you have Maven installed locally, run:
+The test suite runs under the `test` profile with an in-memory H2 database, in-memory storage,
+and permit-all security — so no containers are needed:
+
 ```bash
 mvn test
 ```
-Alternatively, you can use the Maven wrapper:
-```bash
-./mvnw test
-```
 
 # 📬 Postman Collection
-A Postman collection is provided in the `postman` directory for easy testing of the API endpoints.
-Import `statement-api-collection.json` into Postman to get started.
+A Postman collection is provided in the `postman` directory. Note that statement endpoints now
+require an `Authorization: Bearer <token>` header obtained from `/api/auth/login`.
 
 # 📄 Sample Statement
-A sample PDF statement file is also included in the `pdf` directory for upload testing.
-
-# 🙋 Support
-If you encounter issues, open a GitHub issue or contact the maintainer.
+A sample PDF (`pdf/statement_123_2024_10.pdf`) is included for upload testing — register with
+customer ID `123` to use it.
 
 # ⚠️ Disclaimer
-This service is intended for demonstration and testing purposes only.
-Do not use it in production as it stores statements in memory and does not persist data.
+This service is intended for demonstration and testing purposes only. The Keycloak, MinIO, and
+Postgres credentials are hard-coded demo defaults and must not be used in production.

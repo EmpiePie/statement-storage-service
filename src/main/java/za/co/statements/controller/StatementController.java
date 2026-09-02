@@ -16,6 +16,7 @@ import za.co.statements.dto.response.ErrorResponse;
 import org.springframework.web.bind.annotation.*;
 
 import org.springframework.web.multipart.MultipartFile;
+import za.co.statements.auth.CurrentUserService;
 import za.co.statements.dto.StatementMetadataDto;
 import za.co.statements.dto.response.DownloadLinkResponse;
 import za.co.statements.dto.response.UploadResponse;
@@ -42,6 +43,7 @@ import java.util.regex.Pattern;
 public class StatementController {
 
     private final StatementService statementService;
+    private final CurrentUserService currentUserService;
 
 // --------------------------------------------------------------
 // Upload Statement (Multipart PDF Upload — Filename-Based)
@@ -117,6 +119,8 @@ public class StatementController {
         int year = Integer.parseInt(matcher.group(2));
         int month = Integer.parseInt(matcher.group(3));
 
+        currentUserService.assertOwnership(customerId);
+
         byte[] pdfBytes = file.getBytes();
 
         statementService.saveStatement(
@@ -158,6 +162,8 @@ public class StatementController {
             @PathVariable int year,
             @PathVariable int month) {
 
+        currentUserService.assertOwnership(customerId);
+
         DownloadLinkResponse link = statementService.createDownloadLink(
                 customerId,
                 YearMonth.of(year, month)
@@ -196,6 +202,8 @@ public class StatementController {
             @PathVariable Long customerId,
             @PageableDefault(size = 10, sort = "period", direction = Sort.Direction.DESC)
             Pageable pageable) {
+
+        currentUserService.assertOwnership(customerId);
 
         log.info("Listing statements for customerId={} page={} size={} sort={}",
                 customerId,

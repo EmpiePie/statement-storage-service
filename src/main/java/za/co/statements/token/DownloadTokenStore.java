@@ -1,81 +1,71 @@
 package za.co.statements.token;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+import za.co.statements.persistence.DownloadToken;
+import za.co.statements.persistence.DownloadTokenRepository;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Issues and validates time-limited download tokens.
+ * Tokens are persisted in Postgres so they survive service restarts.
+ * The public API is unchanged from the previous in-memory implementation.
+ */
 @Component
 @Slf4j
+@RequiredArgsConstructor
 public class DownloadTokenStore {
 
-    private final Map<String, TokenData> tokens = new ConcurrentHashMap<>();
-
-    private static class TokenData {
-        String path;
-        Instant expiresAt;
-    }
+    private final DownloadTokenRepository repository;
 
     public String generateToken(final String path, final Duration ttl) {
         String token = UUID.randomUUID().toString();
+        Instant expiresAt = Instant.now().plus(ttl);
 
-        TokenData data = new TokenData();
-        data.path = path;
-        data.expiresAt = Instant.now().plus(ttl);
-        tokens.put(token, data);
+        repository.save(new DownloadToken(token, path, expiresAt));
 
-        log.info("Generated token {} for path={}, expiresAt={}", token, path, data.expiresAt);
-
+        log.info("Generated token {} for path={}, expiresAt={}", token, path, expiresAt);
         return token;
     }
 
     public String validateToken(final String token) {
-        TokenData data = tokens.get(token);
+        DownloadToken data = repository.findById(token).orElse(null);
 
         if (data == null) {
             log.warn("Token {} not found or expired", token);
             return null;
         }
 
-        if (Instant.now().isAfter(data.expiresAt)) {
-            log.warn("Token {} expired at {}", token, data.expiresAt);
-            tokens.remove(token);
+        if (Instant.now().isAfter(data.getExpiresAt())) {
+            log.warn("Token {} expired at {}", token, data.getExpiresAt());
+            repository.deleteById(token);
             return null;
         }
 
         log.info("Token {} validated successfully", token);
-        return data.path;
+        return data.getPath();
     }
 
     @Scheduled(fixedRate = 60_000) // every 1 minute
+    @Transactional
     public void purgeExpired() {
-        int before = tokens.size();
-
-        tokens.entrySet().removeIf(entry -> {
-            boolean expired = entry.getValue().expiresAt.isBefore(Instant.now());
-            if (expired) {
-                log.info("Purging expired token={}", entry.getKey());
-            }
-            return expired;
-        });
-
-        int after = tokens.size();
-        if (before != after) {
-            log.info("Purged {} expired tokens", before - after);
+        long removed = repository.deleteByExpiresAtBefore(Instant.now());
+        if (removed > 0) {
+            log.info("Purged {} expired tokens", removed);
         }
     }
 
     public void forceExpireToken(final String token) {
-        TokenData data = tokens.get(token);
-        if (data != null) {
-            data.expiresAt = Instant.now().minusSeconds(1);
+        repository.findById(token).ifPresent(data -> {
+            data.setExpiresAt(Instant.now().minusSeconds(1));
+            repository.save(data);
             log.info("Forced expiry of token {}", token);
-        }
+        });
     }
 }
-

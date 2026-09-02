@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Login — Statement Service</title>
+    <style>
+        body { font-family: Arial; margin: 40px; max-width: 420px; }
+        h1 { font-size: 1.4em; }
+        input, button { padding: 8px; margin: 4px 0; width: 100%; box-sizing: border-box; }
+        button { background: #4CAF50; color: white; border: none; cursor: pointer; }
+        .msg { margin-top: 12px; min-height: 1.2em; }
+        .error { color: #f44336; }
+        .link { margin-top: 16px; display: block; }
+    </style>
+</head>
+<body>
+
+<h1>🔐 Statement Service Login</h1>
+
+<form id="loginForm">
+    <label>Username</label>
+    <input type="text" id="username" required />
+    <label>Password</label>
+    <input type="password" id="password" required />
+    <button type="submit">Log in</button>
+</form>
+
+<p id="msg" class="msg"></p>
+<a class="link" href="/register">Need an account? Register</a>
+
+<script>
+    document.getElementById("loginForm").onsubmit = async function (e) {
+        e.preventDefault();
+        const msg = document.getElementById("msg");
+        msg.textContent = "";
+        msg.className = "msg";
+
+        try {
+            const res = await fetch("/api/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    username: document.getElementById("username").value,
+                    password: document.getElementById("password").value
+                })
+            });
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.message || "Login failed");
+            }
+
+            const data = await res.json();
+            localStorage.setItem("access_token", data.access_token);
+            window.location.href = "/statements";
+        } catch (err) {
+            msg.textContent = err.message;
+            msg.className = "msg error";
+        }
+    };
+</script>
+
+</body>
+</html>

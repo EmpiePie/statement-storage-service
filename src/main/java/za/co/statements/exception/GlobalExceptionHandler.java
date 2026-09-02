@@ -2,6 +2,7 @@ package za.co.statements.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import za.co.statements.auth.KeycloakClient;
 import za.co.statements.dto.response.ErrorResponse;
 
 import org.springframework.web.bind.annotation.*;
@@ -11,6 +12,24 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(StatementNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleStatementNotFound(final StatementNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(AccessForbiddenException.class)
+    public ResponseEntity<ErrorResponse> handleAccessForbidden(final AccessForbiddenException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(KeycloakClient.BadCredentialsException.class)
+    public ResponseEntity<ErrorResponse> handleBadCredentials(final KeycloakClient.BadCredentialsException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(KeycloakClient.UserAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handleUserExists(final KeycloakClient.UserAlreadyExistsException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(new ErrorResponse(ex.getMessage()));
     }
 

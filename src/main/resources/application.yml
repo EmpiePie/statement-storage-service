@@ -5,20 +5,54 @@ spring:
   application:
     name: statement-service
 
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/statements}
+    username: ${SPRING_DATASOURCE_USERNAME:statements}
+    password: ${SPRING_DATASOURCE_PASSWORD:statements}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # JWKS endpoint of the Keycloak realm that signs the tokens.
+          # Using jwk-set-uri (not issuer-uri) keeps app startup independent of
+          # Keycloak boot order — keys are fetched lazily on the first request.
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://keycloak:8080/realms/statements/protocol/openid-connect/certs}
+
+# Keycloak connection details used by the auth (login/register) flow
+keycloak:
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:http://keycloak:8080}
+  realm: ${KEYCLOAK_REALM:statements}
+  client-id: ${KEYCLOAK_CLIENT_ID:statement-service}
+  client-secret: ${KEYCLOAK_CLIENT_SECRET:statement-service-secret}
+  admin-username: ${KEYCLOAK_ADMIN_USERNAME:admin}
+  admin-password: ${KEYCLOAK_ADMIN_PASSWORD:admin}
+
 logging:
   level:
     root: INFO
-    com.example: DEBUG
+    za.co.statements: DEBUG
 
 statement:
   token:
-    ttl-seconds: 300 # default 5 minutes for download links
+    ttl-seconds: ${STATEMENT_TOKEN_TTL_SECONDS:300} # default 5 minutes for download links
 
 storage:
-  cleanup:
-    enabled: true
-    interval: 5m   # scheduled token cleanup
-    base-path: ./storage
+  s3:
+    endpoint: ${STORAGE_S3_ENDPOINT:http://minio:9000}
+    region: ${STORAGE_S3_REGION:us-east-1}
+    bucket: ${STORAGE_S3_BUCKET:statements}
+    access-key: ${STORAGE_S3_ACCESS_KEY:minioadmin}
+    secret-key: ${STORAGE_S3_SECRET_KEY:minioadmin}
 
 springdoc:
   api-docs:
